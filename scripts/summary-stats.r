@@ -4,6 +4,8 @@ library(lubridate)
 library(batR)
 library(sf)
 
+"20080107X00027"
+
 theme_set(theme_minimal())
 
 setwd("~/Documents/ntsb")
@@ -21,19 +23,44 @@ events %>%
   count(ev_year) %>%
   ggplot(aes(x = ev_year, y = n)) +
   geom_line(stat = "identity") +
-  ylim(1000, 2000)
+  ylim(1000, 2000) +
+  labs(title = "Events over time")
+
+events %>%
+  filter(ev_highest_injury == "FATL") %>%
+  count(ev_year) %>%
+  ggplot(aes(x = ev_year, y = n)) +
+  geom_line(stat = "identity") +
+  labs(title = "Events with fatalities over time")
+
+events %>%
+  count(mid_air)
+
+events %>%
+  count(on_ground_collision)
+
+events %>%
+  count(gust_ind)
+
+###############################################################################
+# Fatal Accidents -------------------------------------------------------------
+###############################################################################
 
 df <- events %>%
   filter(ev_highest_injury == "FATL",
          ev_state %in% state_abbreviations)
 
 ggplot(df, aes(x = inj_tot_t)) +
-  geom_density()
+  geom_density() +
+  labs(title = "Distribution of total number of injuries for events with fatality")
 
 df %>%
   count(ev_state, ev_year) %>%
   ggplot(aes(x = ev_year, y = n, group = ev_state)) +
   geom_line() + facet_wrap(~ev_state, nrow = 10, ncol = 5)
+
+df$ev_dow <- factor(df$ev_dow,
+                    levels = c("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"))
 
 df %>%
   count(ev_dow) %>%
@@ -61,8 +88,6 @@ state <- geom_polygon(aes(x = long, y = lat, group = group),
                       data = map_data('state'),
                       fill = "#e3e0e0", color = "#515151",
                       size = 0.15)
-
-pal <- brewer.pal(n = 8, name = "Set1")
 
 maptheme <- theme(panel.grid = element_blank()) +
   theme(axis.text = element_blank()) +
@@ -99,9 +124,62 @@ ggplot(data = us_map) +
   coord_fixed(1) + theme_void() +
   labs(title = "Aircraft Crashes with Fatalities")
 
-
 ###############################################################################
 # Injury Table ----------------------------------------------------------------
 ###############################################################################
 
 injury <- read_csv("data/injury.csv")
+
+###############################################################################
+# Aircraft Table --------------------------------------------------------------
+###############################################################################
+
+aircraft <- read_csv("data/aircraft.csv")
+
+aircraft %>%
+  filter(total_seats < 1000) %>%
+  ggplot(aes(x = total_seats)) +
+  geom_density()
+
+events %>%
+  select(ev_id, inj_tot_f, inj_tot_s, inj_tot_n, inj_tot_t) %>%
+  right_join(aircraft) %>%
+  drop_na(total_seats, inj_tot_f) %>%
+  filter(total_seats < 1000) %>%
+  { cor(.$total_seats, .$inj_tot_f) }
+
+events %>%
+  select(ev_id, inj_tot_f, inj_tot_s, inj_tot_n, inj_tot_t) %>%
+  right_join(aircraft) %>%
+  drop_na(total_seats, inj_tot_t) %>%
+  filter(total_seats < 1000) %>%
+  { cor(.$total_seats, .$inj_tot_t) }
+
+events %>%
+  select(ev_id, inj_tot_f, inj_tot_s, inj_tot_n, inj_tot_t) %>%
+  right_join(aircraft) %>%
+  drop_na(total_seats, inj_tot_t) %>%
+  filter(total_seats < 1000) %>%
+  ggplot(aes(x = total_seats, y = inj_tot_t)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+events %>%
+  select(ev_id, inj_tot_f, inj_tot_s, inj_tot_n, inj_tot_t) %>%
+  right_join(aircraft) %>%
+  drop_na(total_seats, inj_tot_t) %>%
+  filter(total_seats < 1000) %>%
+  ggplot(aes(x = total_seats, y = inj_tot_f)) +
+  geom_point()
+
+aircraft %>%
+  mutate(acft_make = str_to_lower(acft_make)) %>%
+  count(acft_make) %>%
+  arrange(desc(n)) %>%
+  slice_max(n = 20, order_by = n) %>%
+  ggplot(aes(x = reorder(acft_make, n), y = n)) +
+  geom_bar(stat = "identity") +
+  coord_flip()
+
+aircraft %>%
+  count(acft_category)
