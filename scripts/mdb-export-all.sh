@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Usage: mdb-export-all.sh full-path-to-db
 
+cd data
+
 command -v mdb-tables >/dev/null 2>&1 || {
     echo >&2 "I require mdb-tables but it's not installed. Aborting.";
     exit 1;
