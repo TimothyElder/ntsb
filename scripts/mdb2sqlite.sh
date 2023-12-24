@@ -7,27 +7,22 @@
 # run ./mdb2sqlite.sh migration-export.mdb
 # wait and wait a bit longer...
 
-now=$(date +%s)
 sqlite=sqlite3
 fname=$1
 sql=${fname/mdb/sqlite}
 schema=${fname/mdb/schema}
-dir=${fname/.mdb/}-$now
 
-mkdir $dir
-
-mdb-schema $fname sqlite > $dir/$schema
+mdb-schema $fname sqlite > $schema
 
 for i in $( mdb-tables $fname ); do 
   echo $i  
-  mdb-export -D "%Y-%m-%d %H:%M:%S" -H -I sqlite $fname $i > $dir/$i.sql
+  mdb-export -D "%Y-%m-%d %H:%M:%S" -H -I sqlite $fname $i > $i.sql
 done
 
-< $dir/$schema $sqlite $sql
+< $schema $sqlite $sql
 
-for f in $dir/*.sql ; do 
+for f in *.sql ; do 
   echo $f 
   (echo 'BEGIN;'; cat $f; echo 'COMMIT;') | $sqlite $sql
   
 done
-echo "Using $dir"
