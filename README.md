@@ -6,7 +6,7 @@ Some analyses of accident data collected by the National Transportation Safety B
 
 ```sh
 sh scripts/get-data.sh
-sh scripts/mdb2sqlite.sh avall.mdb
+sh scripts/mdb-export-all.sh ../avall.mdb
 ```
 
 ## Some Important Variables
