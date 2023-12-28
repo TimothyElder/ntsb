@@ -1,5 +1,7 @@
 library(tidygeocoder)
 library(tidyverse)
+library(magrittr)
+library(usmap)
 library(mapdata)
 library(batR)
 
@@ -37,10 +39,22 @@ events %<>%
 
 # Geocoding
 lat_longs <- events %>%
-  filter(dprt_country == "USA", dest_country == "USA") %>%
-  sample_n(size = 100) %>%
+  filter(dprt_country == "USA", dest_country == "USA",
+         is.na(dest_state) == FALSE, is.na(dprt_state) == FALSE) %>%
+  sample_n(size = 200) %>%
   geocode(dprt_addr, method = 'osm', lat = dprt_latitude , long = dprt_longitude) %>%
   geocode(dest_addr, method = 'osm', lat = dest_latitude , long = dest_longitude)
+
+lat_longs %<>%
+  drop_na(dprt_latitude, dprt_longitude, dest_latitude, dest_longitude)
+
+lat_longs <- usmap_transform(lat_longs,
+                      input_names = c("dprt_longitude", "dprt_latitude"),
+                      output_names = c("x1", "y1"))
+
+lat_longs <- usmap_transform(lat_longs,
+                      input_names = c("dest_longitude", "dest_latitude"),
+                      output_names = c("x2", "y2"))
 
 
 ###############################################################################
@@ -68,16 +82,27 @@ maptheme <- theme(panel.grid = element_blank()) +
 
 lat_longs %>%
     filter(dprt_latitude != dest_latitude, ev_state %in% state_abbreviations) %>%
-    filter(dest_latitude > min_lat, dest_latitude < max_lat,
-         dest_longitude > min_lon, dest_longitude < max_lon) %>%
     drop_na(dprt_latitude, dprt_longitude, dest_latitude, dest_longitude) %>%
     ggplot() +
-    borders("state") +
+    state +
     coord_fixed(1.3) +
     geom_curve(aes(x = dprt_longitude, y = dprt_latitude,
                    xend = dest_longitude, yend = dest_latitude),
                alpha = 1, curvature = 0.1, linewidth = .5)
-    geom_point(aes(x = longitude, y = latitude, size = Outdegree, fill = Eig))
+
+us_map <- us_map(regions = "states")
+
+lat_longs <- lat_longs %>%
+    filter(dprt_latitude != dest_latitude, ev_state %in% state_abbreviations) %>%
+    drop_na(dprt_latitude, dprt_longitude, dest_latitude, dest_longitude)
+
+ggplot(data = us_map) +
+  geom_polygon(aes(x = x, y = y, group = group),
+               fill = "white", color = "black") +
+  geom_curve(data = lat_longs,
+             aes(x = x1, y = y1, xend = x2, yend = y2),
+             alpha = 1, curvature = 0.1, linewidth = .5)
 
 
 ggsave("~/Desktop/map.jpg")
+
